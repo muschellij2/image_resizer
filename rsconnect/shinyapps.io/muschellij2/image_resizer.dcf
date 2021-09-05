@@ -1,0 +1,13 @@
+name: image_resizer
+title: image_resizer
+username:
+account: muschellij2
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4596372
+bundleId: 5002521
+url: https://muschellij2.shinyapps.io/image_resizer/
+when: 1630869169.81283
+lastSyncTime: 1630869169.81284
+asMultiple: FALSE
+asStatic: FALSE
