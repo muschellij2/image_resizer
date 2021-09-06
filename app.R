@@ -12,7 +12,6 @@ library(magick)
 library(shinyjs)
 
 options(shiny.maxRequestSize = 1024^4)
-
 local_run = Sys.info()["user"] == "johnmuschelli"
 
 # logo <- image_read("logo:")
@@ -50,32 +49,42 @@ server <- function(input, output) {
     values = reactiveValues()
     values$output_directory = ifelse(local_run, tempfile(), ".")
 
-    unzip_files = reactive({
-        zipfile = input$zipfile$datapath
+    get_all_files = reactive({
+        values$zipfile = input$zipfile$datapath
+        zipfile = values$zipfile
         print(input)
         dir.create(values$output_directory, recursive = TRUE, showWarnings = FALSE)
-        if (!is.null(zipfile) && file.exists(input$zipfile$datapath)) {
+        if (!is.null(zipfile) && file.exists(zipfile)) {
             files = unzip(zipfile = zipfile,
                           exdir = values$output_directory,
-                          overwrite = TRUE)
+                          overwrite = TRUE,
+                          list = TRUE)
+            files = files$Name
             files = files[!grepl("__MACOSX", files)]
             files = files[grepl("(jpg|png|jpeg|bmp|tiff|tif)$",
                                 files, ignore.case = TRUE)]
             # save some space
-            file.remove(input$zipfile$datapath)
         } else {
             files = NULL
         }
         files
     })
 
-    process_file = function(path) {
-        img = magick::image_read(path, density = 150)
+
+    process_file = function(path, full_path, exdir, zipfile) {
+        if (!file.exists(full_path)) {
+            unzip(zipfile = zipfile,
+                  files = path,
+                  exdir = exdir,
+                  overwrite = TRUE)
+        }
+        img = magick::image_read(full_path, density = 150)
         img = image_scale(img, geometry = geometry_size_pixels(height = 1029))
         image_write(image = img,
-                    path = path,
+                    path = full_path,
                     quality = 100,
                     density =  150)
+        rm(img); gc()
         return(NULL)
     }
 
@@ -87,22 +96,27 @@ server <- function(input, output) {
         # enable("process_data")
 
         # input$process_data # Re-run when button is clicked
-        files = unzip_files()
+        files = get_all_files()
         values$files = files
+        values$full_files = file.path(values$output_directory, files)
 
         withProgress(message = 'Processing file', value = 0, {
             # Number of times we'll go through the loop
-            n <- length(files)
+            n <- length(values$files)
 
-            for (i in seq_along(files)) {
+            for (i in seq_along(values$files)) {
                 # Each time through the loop, add another row of data. This is
                 # a stand-in for a long-running computation.
 
                 # Increment the progress bar, and update the detail text.
-                incProgress(1/n, detail = files[i])
+                incProgress(1/n, detail = values$files[i])
 
                 # Pause for 0.1 seconds to simulate a long computation.
-                process_file(files[i])
+                process_file(
+                    path = values$files[i],
+                    full_path = values$full_files[i],
+                    zipfile = values$zipfile,
+                    exdir = values$output_directory)
             }
         })
         enable("download")
@@ -117,14 +131,16 @@ server <- function(input, output) {
         },
         content = function(fname) {
             print(fname)
-            stopifnot(all(file.exists(values$files)))
+            browser()
+            stopifnot(all(file.exists(values$full_files)))
             print(head(values$files))
+            print(head(values$full_files))
             print(head(values$output_directory))
             owd = getwd()
             setwd(values$output_directory)
-            utils::zip(zipfile = fname,
-                       files = sub(paste0(values$output_directory, "/"), "", values$files,
-                                   fixed = TRUE)
+            utils::zip(
+                zipfile = fname,
+                files = values$files
             )
             setwd(owd)
             fname
