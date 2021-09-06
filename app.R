@@ -54,13 +54,15 @@ server <- function(input, output) {
         zipfile = input$zipfile$datapath
         print(input)
         dir.create(values$output_directory, recursive = TRUE, showWarnings = FALSE)
-        if (!is.null(zipfile)) {
+        if (!is.null(zipfile) && file.exists(input$zipfile$datapath)) {
             files = unzip(zipfile = zipfile,
                           exdir = values$output_directory,
                           overwrite = TRUE)
             files = files[!grepl("__MACOSX", files)]
             files = files[grepl("(jpg|png|jpeg|bmp|tiff|tif)$",
                                 files, ignore.case = TRUE)]
+            # save some space
+            file.remove(input$zipfile$datapath)
         } else {
             files = NULL
         }
@@ -69,8 +71,8 @@ server <- function(input, output) {
 
     process_file = function(path) {
         img = magick::image_read(path, density = 150)
-        img2 = image_scale(img, geometry = geometry_size_pixels(height = 1029))
-        image_write(image = img2,
+        img = image_scale(img, geometry = geometry_size_pixels(height = 1029))
+        image_write(image = img,
                     path = path,
                     quality = 100,
                     density =  150)
