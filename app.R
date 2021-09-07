@@ -36,7 +36,7 @@ ui = function(input)
 
             # Show a plot of the generated distribution
             mainPanel(
-                textOutput("progresser")
+                uiOutput("progresser")
             )
         )
     )
@@ -61,8 +61,10 @@ server <- function(input, output) {
                           list = TRUE)
             files = files$Name
             files = files[!grepl("__MACOSX", files)]
-            files = files[grepl("(jpg|png|jpeg|bmp|tiff|tif)$",
-                                files, ignore.case = TRUE)]
+            keep = grepl("(jpg|jfif|pjpeg|pjp|png|jpeg|bmp|tiff|tif)$",
+                         files, ignore.case = TRUE)
+            values$non_files = files[!keep]
+            files = files[keep]
             # save some space
         } else {
             files = NULL
@@ -89,7 +91,7 @@ server <- function(input, output) {
     }
 
 
-    output$progresser <- renderText({
+    output$progresser <- renderUI({
         print("in render text")
         print(input$zipfile)
         validate(need(input$zipfile$datapath, label = "Need to Upload a Zip file"))
@@ -120,7 +122,23 @@ server <- function(input, output) {
             }
         })
         enable("download")
-        "Now you can Download your Data!"
+        input$download
+        if (length(values$non_files) > 0) {
+            excluded_files = paste0(
+                "The following files were excluded:",
+                "<br/>",
+                paste(values$non_files, collapse = "<br/>")
+            )
+        } else {
+            excluded_files = "No files were excluded"
+        }
+        HTML(
+            paste0(
+                "Now you can Download your Data!<br/>",
+                excluded_files
+            )
+        )
+
     })
 
 
@@ -131,7 +149,6 @@ server <- function(input, output) {
         },
         content = function(fname) {
             print(fname)
-            browser()
             stopifnot(all(file.exists(values$full_files)))
             print(head(values$files))
             print(head(values$full_files))
