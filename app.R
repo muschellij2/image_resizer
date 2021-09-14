@@ -10,6 +10,12 @@
 library(shiny)
 library(magick)
 library(shinyjs)
+library(animation)
+Sys.setenv(MAGICK_THREAD_LIMIT = 1);
+
+aniopts = animation::ani.options()
+animation::ani.options(autobrowse = FALSE)
+animation::ani.options(interval = 0)
 
 options(shiny.maxRequestSize = 1024^4)
 local_run = Sys.info()["user"] == "johnmuschelli"
@@ -80,13 +86,32 @@ server <- function(input, output) {
                   exdir = exdir,
                   overwrite = TRUE)
         }
-        img = magick::image_read(full_path, density = 150)
-        img = image_scale(img, geometry = geometry_size_pixels(height = 1029))
-        image_write(image = img,
-                    path = full_path,
-                    quality = 100,
-                    density =  150)
-        rm(img); gc()
+        make_img = function(full_path) {
+            img = magick::image_read(full_path, density = 150)
+            img = image_scale(img, geometry = geometry_size_pixels(height = 1029))
+            image_write(image = img,
+                        path = full_path,
+                        quality = 100,
+                        density =  150)
+            rm(img); gc()
+        }
+        make_image_command_line = function(full_path) {
+            extra.opts =  "-density 150 -quality 100 -resize x1029"
+            full_path = normalizePath(path.expand(full_path))
+            fp = shQuote(full_path)
+            res = animation::im.convert(
+                fp,
+                output = full_path,
+                convert = "convert",
+                extra.opts = extra.opts,
+                clean = FALSE
+            )
+        }
+        out = try({make_img(full_path)})
+        if (inherits(out, "try-error")) {
+            print(paste0("Failing at ", full_path))
+            make_image_command_line(full_path)
+        }
         return(NULL)
     }
 
