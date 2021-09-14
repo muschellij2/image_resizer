@@ -96,7 +96,7 @@ server <- function(input, output) {
             rm(img); gc()
         }
         make_image_command_line = function(full_path) {
-            extra.opts =  "-density 150 -quality 100 -resize x1029"
+            extra.opts =  "-units PixelsPerInch -density 150 -quality 100 -resize x1029"
             full_path = normalizePath(path.expand(full_path))
             fp = shQuote(full_path)
             res = animation::im.convert(
